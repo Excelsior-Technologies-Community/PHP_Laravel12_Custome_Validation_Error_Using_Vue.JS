@@ -3,62 +3,133 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator; // Used for validating form inputs
-use App\Models\UserForm;                  // Model to interact with 'user_forms' table
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 
 class UserController extends Controller
 {
-    // Load the form view
-    public function index()
+    // ================= LOGIN VIEW =================
+    public function showLogin()
     {
-        // Return the Blade view 'user-form.blade.php' to the user
-        return view('user-form');
+        return view('login');
     }
 
-    // Handle form submission
-    public function store(Request $request)
+    // ================= LOGIN =================
+    public function login(Request $request)
     {
-        // Validate incoming request data
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|min:3',   // Name is required, minimum 3 characters
-            'email' => 'required|email',  // Email is required and must be valid format
-            'password' => [
-                'required',               // Password is required
-                'min:8',                  // Minimum 8 characters
-                'regex:/[a-z]/',          // Must contain at least one lowercase letter
-                'regex:/[A-Z]/',          // Must contain at least one uppercase letter
-                'regex:/[@$!%*#?&]/',     // Must contain at least one special character
-            ],
-        ], [
-            // Custom error messages for each validation rule
-            'name.required' => 'Name is required',
-            'name.min' => 'Name must be at least 3 characters',
-            'email.required' => 'Email is required',
-            'email.email' => 'Enter a valid email',
-            'password.required' => 'Password is required',
-            'password.min' => 'Password must be at least 8 characters',
-            'password.regex' => 'Password must contain at least 1 uppercase, 1 lowercase, and 1 special character',
+        $credentials = $request->only('email', 'password');
+
+        if (Auth::attempt($credentials)) {
+            return redirect('/dashboard');
+        }
+
+        return back()->with('error', 'Invalid Email or Password');
+    }
+
+    // ================= REGISTER VIEW =================
+    public function showRegister()
+    {
+        return view('register');
+    }
+
+    // ================= REGISTER =================
+    public function register(Request $request)
+    {
+        $request->validate([
+            'name' => 'required',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|min:6'
         ]);
 
-        // If validation fails, return JSON response with errors and status code 422
+        \App\Models\User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => bcrypt($request->password)
+        ]);
+
+        return redirect('/login')->with('success', 'Registered Successfully');
+    }
+
+    // ================= LOGOUT =================
+    public function logout()
+    {
+        Auth::logout();
+        return redirect('/login');
+    }
+
+    // ================= CRUD =================
+
+    public function getUsers(Request $request)
+    {
+        $query = User::query(); // ✅ CHANGE
+
+        if ($request->search) {
+            $search = $request->search;
+
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                    ->orWhere('email', 'like', '%' . $search . '%');
+            });
+        }
+
+        return response()->json($query->latest()->get());
+    }
+    public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|min:3',
+            'email' => 'required|email|unique:user_forms,email',
+            'password' => [
+                'required',
+                'min:8',
+                'regex:/[a-z]/',
+                'regex:/[A-Z]/',
+                'regex:/[@$!%*#?&]/',
+            ],
+        ]);
+
         if ($validator->fails()) {
             return response()->json([
-                'status' => false,
-                'errors' => $validator->errors() // Contains field-specific error messages
+                'errors' => $validator->errors()
             ], 422);
         }
 
-        // Save validated data into the database
         UserForm::create([
             'name' => $request->name,
             'email' => $request->email,
-            'password' => bcrypt($request->password), // Encrypt password before saving
+            'password' => bcrypt($request->password),
+            'status' => 1
         ]);
 
-        // Return success response as JSON
-        return response()->json([
-            'status' => true,
-            'message' => 'User saved successfully'
+        return response()->json(['message' => 'User Added']);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $user = UserForm::findOrFail($id);
+
+        $user->update([
+            'name' => $request->name,
+            'email' => $request->email,
         ]);
+
+        return response()->json(['message' => 'Updated']);
+    }
+
+    public function destroy($id)
+    {
+        User::findOrFail($id)->delete();
+
+        return response()->json(['message' => 'Deleted']);
+    }
+
+    public function toggleStatus($id)
+    {
+        $user = User::findOrFail($id);
+        $user->status = !$user->status;
+        $user->save();
+
+        return response()->json(['message' => 'Status Updated']);
     }
 }

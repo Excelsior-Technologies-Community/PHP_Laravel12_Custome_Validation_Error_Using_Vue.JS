@@ -484,3 +484,9 @@ PHP_Laravel12_Custome_Validation_Error_Using_Vue.JS
 
 
 Your PHP_Laravel12_Custome_Validation_Error_Using_Vue.JS Project is Now Ready!
+<<<<<<< HEAD
+=======
+
+
+
+>>>>>>> development
