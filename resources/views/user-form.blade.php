@@ -3,96 +3,161 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Laravel 12 Vue Validation</title>
+    <title>Dashboard</title>
 
-    <!-- CSRF token for security in AJAX requests -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <!-- Bootstrap CSS for styling -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <!-- Vue 3 and Axios CDN for reactive form handling and HTTP requests -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 
     <style>
         body {
-            background: #f5f7fa; /* Light background color for the page */
+            background: #f4f6f9;
         }
 
-        .form-card {
-            max-width: 500px; /* Card width */
-            margin: 50px auto; /* Center the card vertically and horizontally */
-            padding: 30px; /* Inner spacing */
-            background: #fff; /* White background for the card */
-            border-radius: 12px; /* Rounded corners */
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1); /* Subtle shadow for 3D effect */
+        /* Navbar */
+        .navbar {
+            background: #343a40;
         }
 
+        .navbar a {
+            color: #fff !important;
+        }
+
+        /* Card */
+        .card-box {
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Table */
+        .table th {
+            background: #343a40;
+            color: #fff;
+        }
+
+        .btn {
+            border-radius: 8px;
+        }
+
+        /* Success message */
         .alert {
-            border-radius: 8px; /* Rounded corners for alerts */
+            border-radius: 8px;
         }
     </style>
 </head>
 
 <body>
-    <div id="app">
-        <!-- Main Vue app container -->
 
-        <div class="form-card">
-            <!-- Form card container -->
-            <h3 class="mb-4 text-center">Register User</h3>
+    <!-- NAVBAR -->
+    <nav class="navbar p-3">
+        <div class="container-fluid">
+            <h4 class="text-white">Dashboard</h4>
+            <a href="/logout" class="btn btn-danger btn-sm">Logout</a>
+        </div>
+    </nav>
 
-            <!-- Success message displayed above the form -->
-            <div class="alert alert-success text-center" v-if="successMessage">
-                @{{ successMessage }} <!-- Dynamic success message from Vue -->
+    <div id="app" class="container mt-4">
+
+        <div class="card-box">
+
+            <h4 class="mb-3">User Management</h4>
+
+            <!-- SUCCESS MESSAGE -->
+            <div class="alert alert-success" v-if="successMessage">
+                @{{ successMessage }}
             </div>
 
-            <form @submit.prevent="submitForm">
-                <!-- Form submission handled by Vue's submitForm method -->
+            <!-- SEARCH -->
+            <input type="text" v-model="search" @keyup="fetchUsers" placeholder="Search user..."
+                class="form-control mb-3">
 
-                <!-- Name input -->
-                <div class="mb-3">
-                    <label class="form-label">Name</label>
-                    <input type="text" v-model="form.name" class="form-control" placeholder="Enter your name">
-                    <!-- Display validation error if name has error -->
-                    <small class="text-danger" v-if="errors.name">@{{ errors.name[0] }}</small>
-                </div>
+            <!-- TABLE -->
+            <table class="table table-bordered text-center">
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
 
-                <!-- Email input -->
-                <div class="mb-3">
-                    <label class="form-label">Email</label>
-                    <input type="email" v-model="form.email" class="form-control" placeholder="Enter your email">
-                    <!-- Display validation error if email has error -->
-                    <small class="text-danger" v-if="errors.email">@{{ errors.email[0] }}</small>
-                </div>
+                <tr v-for="user in users" :key="user.id">
+                    <td>@{{ user.name }}</td>
+                    <td>@{{ user.email }}</td>
 
-                <!-- Password input -->
-                <div class="mb-3">
-                    <label class="form-label">Password</label>
-                    <input type="password" v-model="form.password" class="form-control" placeholder="Enter password">
+                    <td>
+                        <span class="badge bg-success" v-if="user.status">Active</span>
+                        <span class="badge bg-secondary" v-else>Inactive</span>
+                    </td>
 
-                    <!-- Instruction text for password rules -->
-                    <small class="text-muted d-block mb-1">
-                        Must be at least 8 characters, include 1 uppercase, 1 lowercase, and 1 special character
-                    </small>
+                    <td>
+                        <button @click="toggleStatus(user.id)" class="btn btn-info btn-sm">Toggle</button>
+                        <button @click="deleteUser(user.id)" class="btn btn-danger btn-sm">Delete</button>
+                    </td>
+                </tr>
+            </table>
 
-                    <!-- Display validation error if password has error -->
-                    <small class="text-danger d-block">
-                        <span v-if="errors.password">@{{ errors.password[0] }}</span>
-                    </small>
-                </div>
-
-                <!-- Submit button -->
-                <div class="d-grid">
-                    <button class="btn btn-primary btn-lg">Submit</button>
-                </div>
-            </form>
         </div>
     </div>
 
-    <!-- Link to external Vue.js app script -->
-    <script src="/js/app.js"></script>
+    <script>
+        axios.defaults.headers.common['X-CSRF-TOKEN'] =
+            document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    users: [],
+                    search: '',
+                    successMessage: '' // <-- Success message
+                }
+            },
+
+            mounted() {
+                this.fetchUsers();
+            },
+
+            methods: {
+
+                fetchUsers() {
+                    axios.get('/get-users?search=' + this.search)
+                        .then(res => {
+                            this.users = res.data;
+                        });
+                },
+
+                deleteUser(id) {
+                    if (confirm("Delete user?")) {
+                        axios.get('/delete/' + id)
+                            .then(res => {
+                                this.successMessage = res.data.message; // show success
+                                this.fetchUsers();
+                                setTimeout(() => this.successMessage = '', 3000); // hide after 3s
+                            })
+                            .catch(err => console.error(err));
+                    }
+                },
+
+                toggleStatus(id) {
+                    axios.get('/status/' + id)
+                        .then(res => {
+                            this.successMessage = res.data.message; // show success
+                            this.fetchUsers();
+                            setTimeout(() => this.successMessage = '', 3000); // hide after 3s
+                        })
+                        .catch(err => console.error(err));
+                }
+            }
+
+        }).mount('#app');
+    </script>
+
 </body>
 
 </html>
