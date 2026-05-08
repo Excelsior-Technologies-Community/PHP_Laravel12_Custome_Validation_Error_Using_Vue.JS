@@ -3,23 +3,17 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
 
-
-// 🔐 LOGIN / REGISTER
-Route::get('/login', [UserController::class, 'showLogin'])->name('login');
+Route::get('/login', [UserController::class, 'showAuth'])->name('login');
+Route::get('/register', [UserController::class, 'showAuth']);
 Route::post('/login', [UserController::class, 'login']);
-
-Route::get('/register', [UserController::class, 'showRegister']);
 Route::post('/register', [UserController::class, 'register']);
-
 Route::get('/logout', [UserController::class, 'logout']);
+Route::get('/check-email', [UserController::class, 'checkEmail']);
 
-// 🔒 PROTECTED CRUD
 Route::middleware('auth')->group(function () {
-
     Route::get('/dashboard', function () {
-        return view('user-form'); // ✅ your CRUD page
+        return view('user-form');
     });
-
     Route::get('/get-users', [UserController::class, 'getUsers']);
     Route::post('/store', [UserController::class, 'store']);
     Route::post('/update/{id}', [UserController::class, 'update']);
@@ -27,7 +21,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/status/{id}', [UserController::class, 'toggleStatus']);
 });
 
-// 🚀 DEFAULT → LOGIN PAGE
 Route::get('/', function () {
     return redirect('/login');
 });
